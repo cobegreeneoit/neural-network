@@ -1,0 +1,23 @@
+{
+  "name": "<insert-repository-name>",
+  "version": "1.0.0",
+  "description": "A repository template for packages to be publish at https://data-science-lab.azurewebsites.net.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rmdir /q /s dist || exit 0"
+  },
+  "author": "<insert author name>",
+  "license": "ISC",
+  "data_science_lab": [
+    
+  ],
+  "dependencies": {
+    "data-science-lab-core": "^0.0.30"
+  },
+  "devDependencies": {
+    "@types/node": "^12.11.1",
+    "typescript": "^3.6.3"
+  }
+}
