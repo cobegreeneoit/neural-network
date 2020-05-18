@@ -1,23 +1,26 @@
 {
-  "name": "<insert-repository-name>",
+  "name": "neural-network",
   "version": "1.0.0",
-  "description": "A repository template for packages to be publish at https://data-science-lab.azurewebsites.net.",
+  "description": "Data Science Lab plugin that is a neural network.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && npm run jasmine && npm run clean",
+    "jasmine": "jasmine --config=./spec/support/jasmine.json || exit 0",
     "clean": "rmdir /q /s dist || exit 0"
   },
-  "author": "<insert author name>",
+  "author": "Cobe Greene",
   "license": "ISC",
-  "data_science_lab": [
-    
-  ],
+  "data_science_lab": [],
   "dependencies": {
     "data-science-lab-core": "^0.0.30"
   },
   "devDependencies": {
     "@types/node": "^12.11.1",
-    "typescript": "^3.6.3"
+    "typescript": "^3.6.3",
+    "jasmine": "^3.5.0",
+    "@types/jasmine": "^3.4.0",
+    "jasmine-ts-console-reporter": "^3.1.1"
   }
 }

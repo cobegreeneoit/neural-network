@@ -1,2 +1,8 @@
-# dsl-package
-A repository template for packages to be publish at https://data-science-lab.azurewebsites.net.  
+# Neural Network
+
+A plugin package for Data Science Lab by Cobe Greene.
+
+Plugins include:
+* Feed-Forward Neural Network
+* Pack Numbers Feature
+* Unpack Numbers Feature
