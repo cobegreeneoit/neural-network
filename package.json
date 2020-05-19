@@ -12,7 +12,23 @@
   },
   "author": "Cobe Greene",
   "license": "ISC",
-  "data_science_lab": [],
+  "data_science_lab": [
+    {
+      "name": "Pack Numbers",
+      "type": "Transform",
+      "classname": "PackNumbers"
+    },
+    {
+      "name": "Unpack Numbers",
+      "type": "Transform",
+      "classname": "UnpackNumbers"
+    },
+    {
+      "name": "Feed-Forward Neural Network",
+      "type": "Algorithm",
+      "classname": "FeedForwardNetwork"
+    }
+  ],
   "dependencies": {
     "data-science-lab-core": "^0.0.30"
   },

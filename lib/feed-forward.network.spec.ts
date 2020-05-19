@@ -273,7 +273,7 @@ describe('Feed Forward Network Tests', () => {
                 expect(recorder.record).toHaveBeenCalledTimes(1);
             });
 
-            it('training few steps should be able to predict the training set', async () => {
+            xit('training few steps should be able to predict the training set', async () => {
                 for (let i = 0; i < 1000; ++i) {
                     await network.step();
                 }
