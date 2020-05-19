@@ -6,10 +6,11 @@ interface FeedForwardNetworkData {
     regularization: boolean;
     lambda: number;
     labels: number[];
-    input: Matrix.Matrix;
+    input: number[][];
     output: number[];
     m: number;
     n: number;
+    batchSize: number;
     thetas: Matrix.Matrix[];
 };
 
@@ -23,7 +24,7 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
         super();
         this.options = new FeedForwardNetworkPluginOptions(this);
         this.inputs = new FeedForwardNetworkPluginInputs(this);
-        this.data = {} as FeedForwardNetworkData;
+        this.data = { learningRate: 0.1, regularization: false, lambda: 0.5, batchSize: 32 } as FeedForwardNetworkData;
     }
 
     finishTraining() {
@@ -35,13 +36,16 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
     }
 
     initialize() {
+        const initial_elipsion = 0.01;
+        const func = () => Math.random() * 2.0 * initial_elipsion - initial_elipsion;
         this.data.thetas = this.data.layers.map((value, index) => {
             if (index === 0) {
-                return Matrix.zeros(value, this.data.n);
+                return Matrix.construct(value, this.data.n + 1, () => func());
             }
-            return Matrix.zeros(value, this.data.layers[index - 1] + 1);
+            return Matrix.construct(value, this.data.layers[index - 1] + 1, () => func());
         });
-        this.data.thetas.push(Matrix.zeros(this.data.labels.length, this.data.layers[this.data.layers.length - 1] + 1));
+        this.data.thetas.push(Matrix.construct(this.data.labels.length, this.data.layers[this.data.layers.length - 1] + 1, func));
+        // console.log('thetas', ...this.data.thetas);
     }
 
     sigmoid(m: Matrix.Matrix): Matrix.Matrix {
@@ -51,7 +55,7 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
     }
 
     sigmoidGradient(m: Matrix.Matrix): Matrix.Matrix {
-        return Matrix.columnMultiply(this.sigmoid(m), this.subtract(1, m));
+        return Matrix.columnMultiply(this.sigmoid(m), this.subtract(1.0, this.sigmoid(m)));
     }
 
     log(m: Matrix.Matrix): Matrix.Matrix {
@@ -100,12 +104,14 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
         const argumentInput = argument['input'] as number[][];
         let a = Matrix.transpose(Matrix.make([[1, ...argumentInput[0]]]));
         let z = Matrix.multiply(this.data.thetas[0], a);
-        for (let i = 1; i < this.data.layers.length; ++i) {
-            a = Matrix.make(this.sigmoid(z).data.map((value) => [1, ...value]));
+        for (let i = 1; i <= this.data.layers.length; ++i) {
+            a = Matrix.make([[1]].concat(this.sigmoid(z).data)); 
             z = Matrix.multiply(this.data.thetas[i], a);
+            // console.log(a);
         }
         
         a = this.sigmoid(z);
+        // console.log(a);
         let maxIndex = 0;
         for (let i = 1; i < a.rows; ++i) {
             if (a.data[i][0] > a.data[maxIndex][0]) {
@@ -122,19 +128,22 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
         let cost = 0;
         let deltas = this.data.thetas.map((value) => Matrix.zeros(value.rows, value.columns));
         //deltas = [T0, T1, T2, T3];
-        for (let mi = 0; mi < this.data.m; ++mi) {
+        for (let bi = 0; bi < this.data.batchSize; ++bi) {
+            let mi = Math.floor(Math.random() * this.data.m);
+            // console.log('example', mi, this.data.input[mi]);
             let zs: Matrix.Matrix[] = [];
             let as: Matrix.Matrix[] = [];
 
-            let a = Matrix.transpose(Matrix.make([[1, ...this.data.input.data[mi]]])); // a1: 4x1
+            let a = Matrix.transpose(Matrix.make([[1, ...this.data.input[mi]]])); // a1: 4x1
+            
             let z = Matrix.multiply(this.data.thetas[0], a); // z2: 5x1
             zs.push(z); // zs = [z2]
             as.push(a); // as = [a1]
-
-            for (let i = 1; i < this.data.layers.length; ++i) {
+            for (let i = 1; i <= this.data.layers.length; ++i) {
                 // i = 1, T1
-                a = Matrix.make(this.sigmoid(z).data.map((value) => [1, ...value])); // a2: 6x1
+                a = Matrix.make([[1]].concat(this.sigmoid(z).data)); // a2: 6x1
                 z = Matrix.multiply(this.data.thetas[i], a); // z3: 8x1
+
                 zs.push(z); // zs = [z2, z3]
                 as.push(a); // as = [a1, a2]
 
@@ -150,17 +159,19 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
                 // zs.push(z); // zs = [z2, z3, z4, z5]
                 // as.push(a); // as = [a1, a2, a3, a4]
             }
-
             let aLast = this.sigmoid(z); // a5: 10x1
             as.push(aLast); // as = [a1, a2, a3, a4, a5]
+            // console.log('as', ...as);
+            // console.log('zs', ...zs);
             let yi = Matrix.construct(this.data.labels.length, 1, (row) => {
                 return this.data.output[mi] === this.data.labels[row] ? 1 : 0;
             });
+            // console.log('yi', yi);
 
             const costLhs = Matrix.columnMultiply(Matrix.multiply(yi, -1), this.log(aLast));
-            const costRhs = Matrix.columnMultiply(this.subtract(1.0, yi), this.log(aLast));
+            const costRhs = Matrix.columnMultiply(this.subtract(1.0, yi), this.log(this.subtract(1.0, aLast)));
 
-            cost = cost + Matrix.sum(Matrix.subtract(costLhs, costRhs));
+            cost += Matrix.sum(Matrix.subtract(costLhs, costRhs)) / (mi + 1.0);
 
             // deltas = [T0, T1, T2, T3]
             // zs = [z2, z3, z4, z5]
@@ -168,16 +179,20 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
 
             let deltaTravel = Matrix.subtract(aLast, yi); // d5 = a5 - yi = 10x1
             deltas[deltas.length - 1] = Matrix.add(deltas[deltas.length - 1], // D3 or T3  
-                Matrix.multiply(deltaTravel, Matrix.transpose(as[deltas.length - 1]))); // 10x7 + (10x1 * (a4)') = 10x7 + (10x1 * (7x1)') = 10x7 + 10x7 
+                Matrix.multiply(Matrix.multiply(deltaTravel, Matrix.transpose(as[deltas.length - 1])), 1.0 / (mi + 1))); 
+                    // 10x7 + (10x1 * (a4)') = 10x7 + (10x1 * (7x1)') = 10x7 + 10x7 
 
             for (let i = deltas.length - 2; i >= 0; --i) {
                 // i = 2, T2
+                // console.log('delta', i, deltaTravel);
                 const lhs = Matrix.multiply(Matrix.transpose(this.data.thetas[i + 1]), deltaTravel); // (10x7)' * (10x1) = 7x10 * 10x1 = 7x1
-                const rhs = Matrix.make([[0]].concat(...this.sigmoidGradient(zs[i]).data)); // [0; z4] = [0;6x1] = 7x1
+                // console.log('lhs', lhs);
+                const rhs = Matrix.make([[0]].concat(this.sigmoidGradient(zs[i]).data)); // [0; z4] = [0;6x1] = 7x1
+                // console.log('rhs', rhs, zs[i]);
                 deltaTravel = Matrix.make(Matrix.columnMultiply(lhs, rhs).data.slice(1)); // filter(7x1 .* 7x1) = 6x1
+                // console.log('deltaTravel', deltaTravel);
 
-                deltas[i] = Matrix.add(deltas[i], Matrix.multiply(deltaTravel, Matrix.transpose(as[i]))); // (6x9) + (6x1) * (a3') = 6x9 + (6x1) * (9x1)' = 6x9
-
+                deltas[i] = Matrix.add(deltas[i], Matrix.multiply(Matrix.multiply(deltaTravel, Matrix.transpose(as[i])), 1.0 / (mi + 1))); // (6x9) + (6x1) * (a3') = 6x9 + (6x1) * (9x1)' = 6x9
 
                 // i = 1, T1
                 // const lhs = Matrix.multiply(Matrix.transpose(this.data.thetas[i + 1]), deltaTravel); // (6x9)' * (6x1) = 9x6 * 6x1 = 9x1
@@ -194,9 +209,9 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
 
                 // deltas[i] = Matrix.add(deltas[i], Matrix.multiply(deltaTravel, Matrix.transpose(as[i]))); // (5x4) + (5x1) * (a1') = 5x4 + (5x1) * (4x1)' = 5x4
             }
+            // console.log('deltas', ...deltas);
         }
 
-        cost = cost * (1.0 / this.data.m);
 
         if (this.data.regularization) {
             const thetaRegs = this.data.thetas.map((value) => {
@@ -206,27 +221,28 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
                     temp));
             });
             const thetaReg = thetaRegs.reduce((curr, acc) => curr + acc);
-            cost += (this.data.lambda / (2 * this.data.m)) * thetaReg;
+            cost += (this.data.lambda / (2.0 * this.data.m)) * thetaReg;
 
             for (let i = 0; i < this.data.thetas.length; ++i) {
                 const gradient = Matrix.map(this.data.thetas[i], (value, row, column) => {
                     if (column === 0) {
-                        return (1.0 / this.data.m) * deltas[i].data[row][column];
+                        return deltas[i].data[row][column];
                     } else {
-                        return (1.0 / this.data.m) * deltas[i].data[row][column] + (this.data.lambda / this.data.m) * value;
+                        return deltas[i].data[row][column] + (this.data.lambda / this.data.m) * value;
                     }
                 });
                 this.data.thetas[i] = Matrix.subtract(this.data.thetas[i], Matrix.multiply(gradient, this.data.learningRate));
+                // console.log('theta update', i, this.data.thetas[i]);
             }
         } else {
             for (let i = 0; i < this.data.thetas.length; ++i) {
-                const gradient = Matrix.map(this.data.thetas[i], (value, row, column) => {
-                    return (1.0 / this.data.m) * deltas[i].data[row][column];
-                });
-                this.data.thetas[i] = Matrix.subtract(this.data.thetas[i], Matrix.multiply(gradient, this.data.learningRate));
+                // const gradient = Matrix.multiply(deltas[i], 1.0 / this.data.m); 
+                this.data.thetas[i] = Matrix.subtract(this.data.thetas[i], Matrix.multiply(deltas[i], this.data.learningRate));
+                // console.log('theta update', i, this.data.thetas[i]);
             }
         }
 
+        // console.log('cost', cost);
         this.recorder?.record([
             {
                 label: `Cost`,
@@ -263,6 +279,10 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
         this.data.learningRate = rate;
     }
 
+    setBatchSize(size: number) {
+        this.data.batchSize = size;
+    }
+
     setRegularization(regularization: boolean) {
         this.data.regularization = regularization;
     }
@@ -288,9 +308,9 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
     }
 
     setInput(pluginData: number[][]) {
-        this.data.input = Matrix.make(pluginData.map((value) => [1, ...value]));
-        this.data.n = this.data.input.columns;
-        this.data.m = this.data.input.rows;
+        this.data.input = pluginData;
+        this.data.n = this.data.input[0].length;
+        this.data.m = this.data.input.length;
     }
 
     setOutput(pluginData: number[]) {
@@ -315,13 +335,14 @@ class FeedForwardNetworkPluginOptions extends PluginOptions {
     }
 
     noMore() {
-        return this.state === 4;
+        return this.state === 6;
     }
 
     submit(inputs: { [id: string]: any; }): void {
         switch (this.state) {
             case 1:
                 this.network.setLearningRate(inputs['learningRate']);
+                this.network.setBatchSize(Math.floor(inputs['batchSize']));
                 this.layers = Math.floor(inputs['layers']);
                 this.regularization = (inputs['regularization'] as boolean);
                 this.state = 2;
@@ -329,7 +350,7 @@ class FeedForwardNetworkPluginOptions extends PluginOptions {
             case 2:
                 const layers: number[] = Array(this.layers).fill(1);
                 Array(this.layers).fill(undefined).map((_, index) => {
-                    layers[index] = (inputs[`layers${index}`] as number);
+                    layers[index] = (inputs[`layer${index}`] as number);
                 });
                 this.network.setLayers(layers);
 
@@ -338,11 +359,13 @@ class FeedForwardNetworkPluginOptions extends PluginOptions {
                 } else {
                     this.state = 4;
                 }
+                this.labels = this.network.autoDetect();
                 break;
             case 3:
                 this.network.setRegularization(this.regularization);
                 this.network.setLambda(inputs['lambda']);
                 this.state = 4;
+                this.labels = this.network.autoDetect();
                 break;
             case 5:
                 this.network.setLabels(JSON.parse(`[${inputs['labels']}]`));
@@ -386,6 +409,12 @@ class FeedForwardNetworkPluginOptions extends PluginOptions {
                         id: 'regularization',
                         label: 'Use regularization?'
                     }),
+                    new NumberOption({
+                        id: 'batchSize',
+                        label: 'Batch Size (number of examples to use per an iteration)',
+                        min: 1,
+                        step: 1,
+                    })
                 ];
             case 2:
                 return Array(this.layers).fill(undefined).map((_, index) =>
@@ -406,7 +435,6 @@ class FeedForwardNetworkPluginOptions extends PluginOptions {
                     })
                 ];
             case 4:
-                this.labels = this.network.autoDetect();
                 return [
                     new CommandOption({
                         id: 'yes',
