@@ -171,7 +171,7 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
             const costLhs = Matrix.columnMultiply(Matrix.multiply(yi, -1), this.log(aLast));
             const costRhs = Matrix.columnMultiply(this.subtract(1.0, yi), this.log(this.subtract(1.0, aLast)));
 
-            cost += Matrix.sum(Matrix.subtract(costLhs, costRhs)) / (mi + 1.0);
+            cost += Matrix.sum(Matrix.subtract(costLhs, costRhs)) / (bi + 1.0);
 
             // deltas = [T0, T1, T2, T3]
             // zs = [z2, z3, z4, z5]
@@ -179,7 +179,7 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
 
             let deltaTravel = Matrix.subtract(aLast, yi); // d5 = a5 - yi = 10x1
             deltas[deltas.length - 1] = Matrix.add(deltas[deltas.length - 1], // D3 or T3  
-                Matrix.multiply(Matrix.multiply(deltaTravel, Matrix.transpose(as[deltas.length - 1])), 1.0 / (mi + 1))); 
+                Matrix.multiply(Matrix.multiply(deltaTravel, Matrix.transpose(as[deltas.length - 1])), 1.0 / (bi + 1))); 
                     // 10x7 + (10x1 * (a4)') = 10x7 + (10x1 * (7x1)') = 10x7 + 10x7 
 
             for (let i = deltas.length - 2; i >= 0; --i) {
@@ -192,7 +192,7 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
                 deltaTravel = Matrix.make(Matrix.columnMultiply(lhs, rhs).data.slice(1)); // filter(7x1 .* 7x1) = 6x1
                 // console.log('deltaTravel', deltaTravel);
 
-                deltas[i] = Matrix.add(deltas[i], Matrix.multiply(Matrix.multiply(deltaTravel, Matrix.transpose(as[i])), 1.0 / (mi + 1))); // (6x9) + (6x1) * (a3') = 6x9 + (6x1) * (9x1)' = 6x9
+                deltas[i] = Matrix.add(deltas[i], Matrix.multiply(Matrix.multiply(deltaTravel, Matrix.transpose(as[i])), 1.0 / (bi + 1))); // (6x9) + (6x1) * (a3') = 6x9 + (6x1) * (9x1)' = 6x9
 
                 // i = 1, T1
                 // const lhs = Matrix.multiply(Matrix.transpose(this.data.thetas[i + 1]), deltaTravel); // (6x9)' * (6x1) = 9x6 * 6x1 = 9x1
@@ -221,14 +221,14 @@ export class FeedForwardNetwork extends AlgorithmPlugin {
                     temp));
             });
             const thetaReg = thetaRegs.reduce((curr, acc) => curr + acc);
-            cost += (this.data.lambda / (2.0 * this.data.m)) * thetaReg;
+            cost += (this.data.lambda / (2.0 * this.data.batchSize)) * thetaReg;
 
             for (let i = 0; i < this.data.thetas.length; ++i) {
                 const gradient = Matrix.map(this.data.thetas[i], (value, row, column) => {
                     if (column === 0) {
                         return deltas[i].data[row][column];
                     } else {
-                        return deltas[i].data[row][column] + (this.data.lambda / this.data.m) * value;
+                        return deltas[i].data[row][column] + (this.data.lambda / this.data.batchSize) * value;
                     }
                 });
                 this.data.thetas[i] = Matrix.subtract(this.data.thetas[i], Matrix.multiply(gradient, this.data.learningRate));

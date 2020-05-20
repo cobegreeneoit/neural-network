@@ -204,13 +204,13 @@ var FeedForwardNetwork = /** @class */ (function (_super) {
                     // console.log('yi', yi);
                     var costLhs = data_science_lab_core_1.Matrix.columnMultiply(data_science_lab_core_1.Matrix.multiply(yi, -1), this_1.log(aLast));
                     var costRhs = data_science_lab_core_1.Matrix.columnMultiply(this_1.subtract(1.0, yi), this_1.log(this_1.subtract(1.0, aLast)));
-                    cost += data_science_lab_core_1.Matrix.sum(data_science_lab_core_1.Matrix.subtract(costLhs, costRhs)) / (mi + 1.0);
+                    cost += data_science_lab_core_1.Matrix.sum(data_science_lab_core_1.Matrix.subtract(costLhs, costRhs)) / (bi + 1.0);
                     // deltas = [T0, T1, T2, T3]
                     // zs = [z2, z3, z4, z5]
                     // as = [a1, a2, a3, a4, a5]
                     var deltaTravel = data_science_lab_core_1.Matrix.subtract(aLast, yi); // d5 = a5 - yi = 10x1
                     deltas[deltas.length - 1] = data_science_lab_core_1.Matrix.add(deltas[deltas.length - 1], // D3 or T3  
-                    data_science_lab_core_1.Matrix.multiply(data_science_lab_core_1.Matrix.multiply(deltaTravel, data_science_lab_core_1.Matrix.transpose(as[deltas.length - 1])), 1.0 / (mi + 1)));
+                    data_science_lab_core_1.Matrix.multiply(data_science_lab_core_1.Matrix.multiply(deltaTravel, data_science_lab_core_1.Matrix.transpose(as[deltas.length - 1])), 1.0 / (bi + 1)));
                     // 10x7 + (10x1 * (a4)') = 10x7 + (10x1 * (7x1)') = 10x7 + 10x7 
                     for (var i = deltas.length - 2; i >= 0; --i) {
                         // i = 2, T2
@@ -221,7 +221,7 @@ var FeedForwardNetwork = /** @class */ (function (_super) {
                         // console.log('rhs', rhs, zs[i]);
                         deltaTravel = data_science_lab_core_1.Matrix.make(data_science_lab_core_1.Matrix.columnMultiply(lhs, rhs).data.slice(1)); // filter(7x1 .* 7x1) = 6x1
                         // console.log('deltaTravel', deltaTravel);
-                        deltas[i] = data_science_lab_core_1.Matrix.add(deltas[i], data_science_lab_core_1.Matrix.multiply(data_science_lab_core_1.Matrix.multiply(deltaTravel, data_science_lab_core_1.Matrix.transpose(as[i])), 1.0 / (mi + 1))); // (6x9) + (6x1) * (a3') = 6x9 + (6x1) * (9x1)' = 6x9
+                        deltas[i] = data_science_lab_core_1.Matrix.add(deltas[i], data_science_lab_core_1.Matrix.multiply(data_science_lab_core_1.Matrix.multiply(deltaTravel, data_science_lab_core_1.Matrix.transpose(as[i])), 1.0 / (bi + 1))); // (6x9) + (6x1) * (a3') = 6x9 + (6x1) * (9x1)' = 6x9
                         // i = 1, T1
                         // const lhs = Matrix.multiply(Matrix.transpose(this.data.thetas[i + 1]), deltaTravel); // (6x9)' * (6x1) = 9x6 * 6x1 = 9x1
                         // const rhs = Matrix.make([[0]].concat(...this.sigmoidGradient(zs[i]).data)); // [0; z3] = [0;8x1] = 9x1
@@ -245,14 +245,14 @@ var FeedForwardNetwork = /** @class */ (function (_super) {
                         return data_science_lab_core_1.Matrix.sum(data_science_lab_core_1.Matrix.hadamard(temp, temp));
                     });
                     thetaReg = thetaRegs.reduce(function (curr, acc) { return curr + acc; });
-                    cost += (this.data.lambda / (2.0 * this.data.m)) * thetaReg;
+                    cost += (this.data.lambda / (2.0 * this.data.batchSize)) * thetaReg;
                     _loop_2 = function (i) {
                         var gradient = data_science_lab_core_1.Matrix.map(this_2.data.thetas[i], function (value, row, column) {
                             if (column === 0) {
                                 return deltas[i].data[row][column];
                             }
                             else {
-                                return deltas[i].data[row][column] + (_this.data.lambda / _this.data.m) * value;
+                                return deltas[i].data[row][column] + (_this.data.lambda / _this.data.batchSize) * value;
                             }
                         });
                         this_2.data.thetas[i] = data_science_lab_core_1.Matrix.subtract(this_2.data.thetas[i], data_science_lab_core_1.Matrix.multiply(gradient, this_2.data.learningRate));
