@@ -473,6 +473,7 @@ class FeedForwardNetworkPluginInputs extends PluginInputs {
                 id: 'input',
                 label: 'Input Features',
                 min: 1,
+                max: 1,
                 type: 'number[]',
             },
             {

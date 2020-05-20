@@ -494,6 +494,7 @@ var FeedForwardNetworkPluginInputs = /** @class */ (function (_super) {
                 id: 'input',
                 label: 'Input Features',
                 min: 1,
+                max: 1,
                 type: 'number[]',
             },
             {

@@ -27,6 +27,11 @@
       "name": "Feed-Forward Neural Network",
       "type": "Algorithm",
       "classname": "FeedForwardNetwork"
+    },
+    {
+      "name": "Array Scale",
+      "type": "Transform",
+      "classname": "ArrayScale"
     }
   ],
   "dependencies": {
